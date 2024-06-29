@@ -1,0 +1,266 @@
+import plotly.express as px
+from tensorboard.backend.event_processing import event_accumulator
+import pandas as pd
+import numpy as np
+import os
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+
+def extract_tb_data(logdir, position_tags, loss_tag):
+    ea = event_accumulator.EventAccumulator(logdir, size_guidance={event_accumulator.SCALARS: 0})
+    ea.Reload()
+
+    # Extract position data
+    positions = []
+    for tag in position_tags:
+        if tag in ea.scalars.Keys():
+            scalar_events = ea.scalars.Items(tag)
+            positions.append([s.value for s in scalar_events])
+
+    # Extract loss data
+    losses = []
+    if loss_tag in ea.scalars.Keys():
+        scalar_events = ea.scalars.Items(loss_tag)
+        losses = [s.value for s in scalar_events]
+
+    return positions, losses
+
+
+# Configuration
+base_logdir = '/home/prsh7458/work/R2D/test_runs_position'
+rooms = ["HL00W", "HL01W", "HL02WL", "HL02WP", "HL03W", "HL04W", "HL05W", "HL06W", "HL08W"]
+room_locations = ["BC", "FC", "FR", "SiL", "SiR"]
+edc_mae_loss = True
+loss_tag = 'Loss/total_loss_test' if not edc_mae_loss else 'Loss/total_loss_test_edc'
+position_tags = ['Position/x_coordinate', 'Position/y_coordinate', 'Position/z_coordinate']
+save_base_dir = '/home/prsh7458/work/R2D/Loss_Graphs/loss_loc/grid_graphs'
+
+# Predefined source positions
+source_positions = {
+    "BC": [-1.7, -1.81, 1.73],
+    "FC": [2.28, 0, 1.73],
+    "FR": [3.4, -2.87, 1.73],
+    "SiL": [1.31, 2.97, 1.73],
+    "SiR": [0.02, -2.91, 1.73]
+}
+
+# Initialize a Plotly figure with subplots
+fig = make_subplots(rows=len(room_locations), cols=len(rooms), shared_yaxes=True,
+                    horizontal_spacing=0.02, vertical_spacing=0.05)
+
+# Loop to gather data from all rooms and locations, and add markers
+for room_idx, room in enumerate(rooms, start=1):
+    for loc_idx, loc in enumerate(room_locations, start=1):
+        logdir = f'{base_logdir}/R2DNet_{room}_{loc}'
+        positions, losses = extract_tb_data(logdir, position_tags, loss_tag)
+
+        if positions and losses:
+            positions = np.array(positions).T
+            df = pd.DataFrame(positions, columns=['x', 'y', 'z'])
+            exp = 0.5  # For MAE
+            df['loss'] = np.clip(np.array(losses) ** exp, 0, 0.3) if not edc_mae_loss else np.array(losses)
+
+            # Add the data points to the subplot
+            scatter_data = px.scatter(df, x='x', y='y', color='loss', color_continuous_scale='plasma').data
+            for data in scatter_data:
+                data['marker']['size'] = 4.5  # Adjust marker size
+                fig.add_trace(data, row=loc_idx, col=room_idx)
+
+# Remove gridlines and add X, Y labels
+for i in range(len(rooms)):
+    for j in range(len(room_locations)):
+        fig.update_xaxes(showgrid=False, zeroline=False, row=j + 1, col=i + 1,range=[-3, 3], tickfont=dict(size=14))  # Increase x-axis tick font size
+        fig.update_yaxes(showgrid=False, zeroline=False, row=j + 1, col=i + 1,range=[-3, 3], tickfont=dict(size=14))
+
+# Add source position markers
+for loc_idx, loc in enumerate(room_locations, start=1):
+    for room_idx, room in enumerate(rooms, start=1):
+        source_pos = source_positions[loc]
+        fig.add_trace(go.Scatter(
+            x=[source_pos[0]],
+            y=[source_pos[1]],
+            mode='markers',
+            marker_symbol='x',
+            marker_color='red',
+            marker_size=8.5,
+            showlegend=False
+        ), row=loc_idx, col=room_idx)
+
+# Add room names at the top of each column
+for room_idx, room in enumerate(rooms, start=1):
+    fig.add_annotation(
+        text=room,  # Room name
+        xref="paper", yref="paper",
+        x=(room_idx - 0.5) / len(rooms), y=3.5,  # Adjust y to move annotation above the figure
+        xanchor="center", yanchor="bottom",
+        showarrow=False,
+        font=dict(size=20, color="white"),  # Adjust font size as needed
+        row=1, col=room_idx  # Display at the top of each column
+    )
+
+# Add location labels on the right
+for loc_idx, loc in enumerate(room_locations, start=1):
+    fig.add_annotation(
+        text=f"{loc}",
+        xref="paper", yref="paper",
+        x=3.5, y=(loc_idx - 0.5) / len(room_locations),
+        xanchor="left", yanchor="middle",
+        showarrow=False,
+        font=dict(size=20, color="white"),
+        row=loc_idx, col=len(rooms)  # Position at the end of each row
+    )
+
+# Update layout
+fig.update_layout(
+    title='2D Loss Projection Across Rooms and Locations',
+    plot_bgcolor='black',
+    paper_bgcolor='black',
+    font_color="white",
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="right",
+        x=1
+    ),
+    margin=dict(t=40, l=0, r=0, b=0),
+    height=720,  # Adjust height as needed
+    width=1600,  # Adjust width as needed
+)
+
+# Show the figure
+fig.show()
+import plotly.express as px
+from tensorboard.backend.event_processing import event_accumulator
+import pandas as pd
+import numpy as np
+import os
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+
+def extract_tb_data(logdir, position_tags, loss_tag):
+    ea = event_accumulator.EventAccumulator(logdir, size_guidance={event_accumulator.SCALARS: 0})
+    ea.Reload()
+
+    # Extract position data
+    positions = []
+    for tag in position_tags:
+        if tag in ea.scalars.Keys():
+            scalar_events = ea.scalars.Items(tag)
+            positions.append([s.value for s in scalar_events])
+
+    # Extract loss data
+    losses = []
+    if loss_tag in ea.scalars.Keys():
+        scalar_events = ea.scalars.Items(loss_tag)
+        losses = [s.value for s in scalar_events]
+
+    return positions, losses
+
+
+# Configuration
+base_logdir = '/home/prsh7458/work/R2D/test_runs_position'
+rooms = ["HL00W", "HL01W", "HL02WL", "HL02WP", "HL03W", "HL04W", "HL05W", "HL06W", "HL08W"]
+room_locations = ["BC", "FC", "FR", "SiL", "SiR"]
+edc_mae_loss = True
+loss_tag = 'Loss/total_loss_test' if not edc_mae_loss else 'Loss/total_loss_test_edc'
+position_tags = ['Position/x_coordinate', 'Position/y_coordinate', 'Position/z_coordinate']
+save_base_dir = '/home/prsh7458/work/R2D/Loss_Graphs/loss_loc/grid_graphs'
+
+# Predefined source positions
+source_positions = {
+    "BC": [-1.7, -1.81, 1.73],
+    "FC": [2.28, 0, 1.73],
+    "FR": [3.4, -2.87, 1.73],
+    "SiL": [1.31, 2.97, 1.73],
+    "SiR": [0.02, -2.91, 1.73]
+}
+
+# Initialize a Plotly figure with subplots
+fig = make_subplots(rows=len(room_locations), cols=len(rooms), shared_yaxes=True,
+                    horizontal_spacing=0.02, vertical_spacing=0.05)
+
+# Loop to gather data from all rooms and locations, and add markers
+for room_idx, room in enumerate(rooms, start=1):
+    for loc_idx, loc in enumerate(room_locations, start=1):
+        logdir = f'{base_logdir}/R2DNet_{room}_{loc}'
+        positions, losses = extract_tb_data(logdir, position_tags, loss_tag)
+
+        if positions and losses:
+            positions = np.array(positions).T
+            df = pd.DataFrame(positions, columns=['x', 'y', 'z'])
+            exp = 0.5  # For MAE
+            df['loss'] = np.clip(np.array(losses) ** exp, 0, 0.3) if not edc_mae_loss else np.array(losses)
+
+            # Add the data points to the subplot
+            scatter_data = px.scatter(df, x='x', y='y', color='loss', color_continuous_scale='plasma').data
+            for data in scatter_data:
+                data['marker']['size'] = 4.5  # Adjust marker size
+                fig.add_trace(data, row=loc_idx, col=room_idx)
+
+# Remove gridlines and add X, Y labels
+for i in range(len(rooms)):
+    for j in range(len(room_locations)):
+        fig.update_xaxes(showgrid=False, zeroline=False, row=j + 1, col=i + 1,range=[-3, 3], tickfont=dict(size=14))  # Increase x-axis tick font size
+        fig.update_yaxes(showgrid=False, zeroline=False, row=j + 1, col=i + 1,range=[-3, 3], tickfont=dict(size=14))
+
+# Add source position markers
+for loc_idx, loc in enumerate(room_locations, start=1):
+    for room_idx, room in enumerate(rooms, start=1):
+        source_pos = source_positions[loc]
+        fig.add_trace(go.Scatter(
+            x=[source_pos[0]],
+            y=[source_pos[1]],
+            mode='markers',
+            marker_symbol='x',
+            marker_color='red',
+            marker_size=8.5,
+            showlegend=False
+        ), row=loc_idx, col=room_idx)
+
+# Add room names at the top of each column
+for room_idx, room in enumerate(rooms, start=1):
+    fig.add_annotation(
+        text=room,  # Room name
+        xref="paper", yref="paper",
+        x=(room_idx - 0.5) / len(rooms), y=3.5,  # Adjust y to move annotation above the figure
+        xanchor="center", yanchor="bottom",
+        showarrow=False,
+        font=dict(size=20, color="white"),  # Adjust font size as needed
+        row=1, col=room_idx  # Display at the top of each column
+    )
+
+# Add location labels on the right
+for loc_idx, loc in enumerate(room_locations, start=1):
+    fig.add_annotation(
+        text=f"{loc}",
+        xref="paper", yref="paper",
+        x=3.5, y=(loc_idx - 0.5) / len(room_locations),
+        xanchor="left", yanchor="middle",
+        showarrow=False,
+        font=dict(size=20, color="white"),
+        row=loc_idx, col=len(rooms)  # Position at the end of each row
+    )
+
+# Update layout
+fig.update_layout(
+    title='2D Loss Projection Across Rooms and Locations',
+    plot_bgcolor='black',
+    paper_bgcolor='black',
+    font_color="white",
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="right",
+        x=1
+    ),
+    margin=dict(t=40, l=0, r=0, b=0),
+    height=720,  # Adjust height as needed
+    width=1600,  # Adjust width as needed
+)
+
+# Show the figure
+fig.show()
