@@ -50,8 +50,3 @@ Each script can be executed individually to perform its designated function. For
 
 
 python reverb_preprocess_validation.py
-
-## Acknowledgments
-
-Special thanks to Prof. Dr.-Ing. Dr. rer. nat. hc mult. Karlheinz Brandenburg, Dr.-Ing. Stephan Werner, Lukas Treybig, and Dipl.-Ing. Christian Kehling for their guidance and support. Their expertise and encouragement have been invaluable to this research.
-
